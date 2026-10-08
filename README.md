@@ -14,6 +14,7 @@ La aplicación muestra, como una espiral 3D, cómo han seguido las personas una 
 | Tamaño del nodo | Importancia del evento (1–10). |
 | Brillo y halo | Impacto causal: número de conexiones que entran y salen del nodo. |
 | Anillo alrededor del nodo | Personaje histórico. |
+| Curva entre dos nodos | Conexión causal. Los pulsos de luz viajan del evento que influyó al evento influido y el color pasa del de una categoría al de la otra. |
 
 | Nivel | Forma | Ejemplos |
 |---|---|---|
@@ -22,6 +23,15 @@ La aplicación muestra, como una espiral 3D, cómo han seguido las personas una 
 | Tecnología de cocina | Octaedro | Termostato de horno, smartphone, tablet, LLM |
 | Interacción manos libres | Tetraedro | Put-That-There, Kinect, asistentes de voz, MediaPipe Hands, Chef en el Aire |
 | Accesibilidad | Dodecaedro | Braille, OXO Good Grips, VoiceOver, Ley 29973, WCAG 2.2 |
+
+## Vistas y conexiones causales
+
+- **Vista superior (inicial):** la espiral se ve de frente. La rueda del mouse acerca la cámara a lo largo del eje Z y la hace atravesar los niveles uno a uno. Las conexiones de cada nivel se revelan a medida que la cámara se acerca a su altura (más cerca = más visible) y las de los niveles inferiores empiezan a notarse antes de llegar a ellos. La marca de la leyenda indica sobre qué nivel está la cámara.
+- **Vista lateral:** los niveles se ven como pisos apilados, lo que permite comparar en qué época ocurre cada evento en cada categoría.
+- En cualquier vista, las conexiones también aparecen al acercarse a su nodo de origen.
+- **Todas las conexiones:** muestra las 27 conexiones a la vez, sin importar el zoom.
+- **Clic en un nodo:** resalta sus conexiones y atenúa los nodos no relacionados.
+- **Clic en un nivel de la leyenda:** muestra solo ese nivel y sus conexiones.
 
 ## Requisitos
 
@@ -50,12 +60,14 @@ Three.js y D3 se cargan desde un CDN mediante un *import map*, así que no hace 
 | Acción | Resultado |
 |---|---|
 | Arrastrar con clic izquierdo | Rotar la constelación |
-| Rueda del mouse | Acercar o alejar |
+| Rueda del mouse | Acercar o alejar hacia el punto del cursor |
 | Clic derecho + arrastrar (o flechas del teclado) | Desplazar |
 | Pasar el mouse sobre un nodo | Tooltip con año, categoría, resumen y datos clave |
 | Clic en un nodo | Panel con el detalle y sus conexiones |
 | Doble clic en un nodo | Acercar la cámara a ese nodo |
-| Botón **Vista general** | Volver a la vista inicial |
+| Botones **Superior** y **Lateral** | Cambiar de vista; un clic en la vista activa la restablece |
+| Botón **Todas las conexiones** | Mostrar u ocultar todas las conexiones a la vez |
+| Clic en un nivel de la leyenda | Mostrar solo ese nivel; otro clic muestra todos |
 | `Esc` | Cerrar el panel |
 
 ## Estructura
@@ -65,9 +77,9 @@ constelaciones-chef-en-el-aire/
 ├── index.html            # Estructura de la interfaz e import map
 ├── css/styles.css        # Estilos
 ├── js/
-│   ├── main.js           # Integra la escena con la interfaz (tooltip, panel, leyenda)
-│   ├── constellation.js  # Escena 3D: espiral, nodos con shader, OrbitControls, etiquetas
-│   └── data.js           # Categorías, épocas y eventos
+│   ├── main.js           # Integra la escena con la interfaz (tooltip, panel, leyenda, controles)
+│   ├── constellation.js  # Escena 3D: espiral, nodos, conexiones, cámara y revelado por zoom
+│   └── data.js           # Categorías, épocas, eventos y conexiones causales
 └── screenshots/          # Capturas para el informe
 ```
 
@@ -75,6 +87,6 @@ constelaciones-chef-en-el-aire/
 
 | Tecnología | Uso |
 |---|---|
-| Three.js 0.170 (WebGL) | Escena 3D, nodos con `ShaderMaterial`, halos con sprites aditivos, `OrbitControls` y etiquetas con `CSS2DRenderer` |
+| Three.js 0.170 (WebGL) | Escena 3D, nodos con `ShaderMaterial`, halos con sprites aditivos, conexiones como curvas Bézier (`QuadraticBezierCurve3` + `TubeGeometry`) con un shader de pulsos animados, `OrbitControls` y etiquetas con `CSS2DRenderer` |
 | D3.js 7.9 | Escalas de datos: año → posición en la espiral, importancia → tamaño, impacto → brillo; curvas de animación de la cámara |
-| HTML, CSS y JavaScript (módulos ES) | Interfaz: leyenda, tooltip y panel de detalle |
+| HTML, CSS y JavaScript (módulos ES) | Interfaz: leyenda con indicador de profundidad, controles de vista, tooltip y panel de detalle |

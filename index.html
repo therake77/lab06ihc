@@ -34,18 +34,31 @@
 
   <section class="legend" aria-labelledby="legend-title">
     <h2 id="legend-title">Niveles</h2>
-    <ul id="legend-list"></ul>
+    <div class="legend-body">
+      <div class="legend-track" aria-hidden="true"><span id="depth-marker" class="depth-marker"></span></div>
+      <ul id="legend-list"></ul>
+    </div>
+    <p class="legend-hint">Clic en un nivel para mostrar solo ese nivel</p>
     <p class="legend-note"><svg class="ring-icon" viewBox="0 0 16 16" aria-hidden="true"><ellipse cx="8" cy="8" rx="6.5" ry="3"/><circle cx="8" cy="8" r="2.2"/></svg>Con anillo: personaje histórico</p>
   </section>
 
-  <section class="nav-help" aria-label="Controles de navegación">
-    <ul>
+  <section class="controls" aria-label="Controles de la vista">
+    <ul class="nav-help">
       <li><kbd>Arrastrar</kbd> rotar</li>
-      <li><kbd>Rueda</kbd> acercar o alejar</li>
+      <li><kbd>Rueda</kbd> acercar o alejar hacia el cursor</li>
       <li><kbd>Clic derecho</kbd> desplazar</li>
       <li><kbd>Doble clic</kbd> enfocar un nodo</li>
+      <li class="nav-hint">Las conexiones aparecen al acercarte a cada nivel</li>
     </ul>
-    <button type="button" id="reset-view" class="btn">Vista general</button>
+    <div class="control-row">
+      <div class="segmented" role="group" aria-label="Vista">
+        <button type="button" data-view="superior" aria-pressed="true">Superior</button>
+        <button type="button" data-view="lateral" aria-pressed="false">Lateral</button>
+      </div>
+      <button type="button" id="toggle-connections" class="toggle" aria-pressed="false">
+        <span class="toggle-switch" aria-hidden="true"></span><span class="toggle-label-long">Todas las conexiones</span><span class="toggle-label-short">Conexiones</span>
+      </button>
+    </div>
   </section>
 
   <div id="tooltip" class="tooltip" role="tooltip" hidden></div>

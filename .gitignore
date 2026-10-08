@@ -7,3 +7,4 @@ Thumbs.db
 desktop.ini
 .vscode/
 node_modules/
+.env

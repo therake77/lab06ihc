@@ -68,19 +68,75 @@ class ChefConstellationApp {
     this.events.forEach(event => {
       this.constellation.addNodeWithShader(event, this.impactOf(event.id));
     });
+    this.constellation.addCausalConnections(this.outgoing);
+    this.connectionCount = this.constellation.connections.length;
+
     document.getElementById('node-count').textContent =
-      `${this.events.length} eventos en ${CATEGORIES.length} niveles`;
+      `${this.events.length} eventos en ${CATEGORIES.length} niveles · ${this.connectionCount} conexiones causales`;
   }
 
+  // La leyenda también indica la profundidad: muestra sobre qué nivel está la cámara
+  // y permite descender directamente a uno de ellos.
   buildLegend() {
     const list = document.getElementById('legend-list');
-    // De arriba hacia abajo, en el mismo orden en que se ven los niveles
+    this.legendRows = [];
+    // De arriba hacia abajo, en el mismo orden en que la cámara los atraviesa
     [...CATEGORIES].reverse().forEach(cat => {
+      const index = CATEGORIES.indexOf(cat);
       const count = this.events.filter(e => e.categoria === cat.id).length;
       const li = document.createElement('li');
-      li.innerHTML = `${shapeIcon(cat)}<span class="legend-name">${cat.nombre}</span><span class="legend-count">${count}</span>`;
-      li.title = cat.descripcion;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'legend-row';
+      btn.style.setProperty('--cat', cat.color);
+      btn.title = cat.descripcion;
+      btn.setAttribute('aria-pressed', 'false');
+      btn.innerHTML = `${shapeIcon(cat)}<span class="legend-name">${cat.nombre}</span><span class="legend-count">${count}</span>`;
+      btn.addEventListener('click', () => this.toggleFocusLevel(index));
+      li.appendChild(btn);
       list.appendChild(li);
+      this.legendRows.push({ index, btn });
+    });
+    this.depthMarker = document.getElementById('depth-marker');
+    this.legendTrack = document.querySelector('.legend-track');
+  }
+
+  // Clic en un nivel: se muestra solo ese nivel; otro clic vuelve a mostrar todos
+  toggleFocusLevel(index) {
+    const next = this.constellation.focusLevel === index ? null : index;
+    this.constellation.setFocusLevel(next);
+    this.legendRows.forEach(row => {
+      row.btn.setAttribute('aria-pressed', String(row.index === next));
+    });
+    document.querySelector('.legend').classList.toggle('has-focus', next !== null);
+  }
+
+  updateLegendDepth() {
+    const { weight, levelPosition, reveals } = this.constellation.getDepthState();
+    const superior = weight > 0.5;
+    this.legendTrack.classList.toggle('is-active', superior);
+
+    // Fila 0 = nivel superior. La marca se ubica entre filas según la altura de la cámara.
+    const rowHeight = this.legendRows[0].btn.offsetHeight + 2;
+    const pos = Math.max(-0.5, Math.min(this.legendRows.length - 0.5, levelPosition));
+    this.depthMarker.style.transform = `translateY(${(pos + 0.5) * rowHeight}px)`;
+
+    let current = -1;
+    if (superior) {
+      let best = 0.35;
+      this.legendRows.forEach((row, i) => {
+        if (reveals[row.index] > best) { best = reveals[row.index]; current = i; }
+      });
+    }
+    this.legendRows.forEach((row, i) => {
+      row.btn.style.setProperty('--reveal', superior ? reveals[row.index].toFixed(2) : '0');
+      row.btn.classList.toggle('is-current', i === current);
+    });
+  }
+
+  setViewButtons(name) {
+    document.querySelectorAll('[data-view]').forEach(b => {
+      b.setAttribute('aria-pressed', String(b.dataset.view === name));
     });
   }
 
@@ -88,9 +144,22 @@ class ChefConstellationApp {
     this.constellation.onNodeHover = (data, event) => this.updateTooltip(data, event);
     this.constellation.onNodeClick = (data) => this.showEventInfo(data);
 
-    document.getElementById('reset-view').addEventListener('click', () => {
-      this.constellation.resetView();
+    // Vistas: un clic en la vista activa la restablece
+    document.querySelectorAll('[data-view]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        this.setViewButtons(btn.dataset.view);
+        this.constellation.setView(btn.dataset.view);
+      });
     });
+
+    // Modo alternativo: todas las conexiones a la vez
+    const toggle = document.getElementById('toggle-connections');
+    toggle.addEventListener('click', () => {
+      const on = toggle.getAttribute('aria-pressed') !== 'true';
+      toggle.setAttribute('aria-pressed', String(on));
+      this.constellation.setShowAllConnections(on);
+    });
+
     document.getElementById('info-close').addEventListener('click', () => this.closeInfo());
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') this.closeInfo();
@@ -206,6 +275,7 @@ class ChefConstellationApp {
   animate() {
     requestAnimationFrame(() => this.animate());
     this.constellation.animate();
+    this.updateLegendDepth();
   }
 }
 
