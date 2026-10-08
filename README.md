@@ -35,25 +35,59 @@ La aplicación muestra, como una espiral 3D, cómo han seguido las personas una 
 
 ## Requisitos
 
+- Node.js 18 o superior (para el servidor local incluido).
 - Navegador actualizado con soporte para WebGL (Chrome, Edge o Firefox).
-- Conexión a internet para cargar las librerías desde el CDN.
-- Node.js o Python para levantar el servidor local.
+- Conexión a internet: las librerías se cargan desde un CDN y el chat usa la API de Gemini.
+- Una API key de Gemini, que se genera gratis en [Google AI Studio](https://aistudio.google.com/apikey).
 
 ## Cómo ejecutarlo
 
-Los módulos ES no cargan si se abre `index.html` con doble clic, así que se necesita un servidor local. Cualquiera de estas opciones funciona desde la carpeta del proyecto:
+1. Crea el archivo `.env` en la carpeta del proyecto a partir de `.env.example` y pega tu API key:
 
-```bash
-# Opción 1: Node.js
-npx serve .
+   ```
+   GEMINI_API_KEY=tu_api_key
+   ```
 
-# Opción 2: Python
-python -m http.server 8000
-```
+2. Inicia el servidor local desde la carpeta del proyecto:
 
-Luego abre en el navegador la dirección que indique el comando (por ejemplo, `http://localhost:8000`). En VS Code también sirve la extensión **Live Server** (clic derecho en `index.html` → *Open with Live Server*).
+   ```bash
+   node server.js
+   # o bien: npm start
+   ```
 
-Three.js y D3 se cargan desde un CDN mediante un *import map*, así que no hace falta `npm install`.
+3. Abre `http://localhost:8000` en el navegador.
+
+`server.js` no tiene dependencias, así que no hace falta `npm install`. Sirve los archivos del proyecto, nunca entrega archivos ocultos como `.env` y genera `js/config.js` con la API key leída de `.env`.
+
+**Alternativa sin Node.js:** copia `js/config.example.js` como `js/config.js`, pega la API key y levanta cualquier servidor estático, por ejemplo `python -m http.server 8000`. Si no hay key configurada, el panel de chat permite pegarla y la guarda solo durante la sesión de esa pestaña.
+
+Los archivos `.env` y `js/config.js` están en `.gitignore` para que la key no se suba al repositorio.
+
+## Conversación con personajes (Gemini)
+
+Al hacer clic en un nodo con anillo se abre un chat con ese personaje. Gemini responde como el personaje gracias a un *system prompt* definido en `data.js` (`prompt_personaje`), que fija:
+
+- su contexto y su **límite de conocimiento** (fecha);
+- entre 6 y 7 **reglas de comportamiento**;
+- su **estilo de comunicación**;
+- la lista de **conceptos que no conoce** (por ejemplo, Escoffier no conoce el microondas);
+- el formato de respuesta (máximo 120 palabras).
+
+| Personaje | Momento | Nivel |
+|---|---|---|
+| Marco Gavio Apicio | Roma, año 30 d. C. | Gastronomía |
+| Antonin Carême | París, otoño de 1832 | Gastronomía |
+| Auguste Escoffier | Londres, 1903 | Gastronomía |
+| Fannie Farmer | Boston, 1896 | Medios de receta |
+| Julia Child | Boston, 1963 | Medios de receta |
+
+Detalles de la integración (`js/llm-client.js`):
+
+- **Memoria:** cada personaje conserva su propio historial (hasta 10 intercambios), que se envía en cada llamada. El botón ↻ reinicia la conversación.
+- **Temperatura:** se ajusta con el control deslizante del panel (de 0.0 a 2.0, por defecto 1.0) o escribiendo `/temp 0.5` en el chat. Se aplica a las respuestas siguientes, y cada respuesta indica con qué temperatura y modelo se generó.
+- **Modelo:** con `GEMINI_MODEL=auto` (valor por defecto), la app consulta los modelos disponibles para la key y elige el Gemini Flash-Lite estable más reciente, que es el de mayor cuota en el plan gratuito. Si se agota su cuota diaria, cambia a otro modelo disponible y lo avisa en el chat. El modelo en uso se muestra al pie del panel.
+- **Plan gratuito:** el saludo de cada personaje es fijo para no gastar solicitudes; el pensamiento del modelo se limita al mínimo para ahorrar tokens; y el envío se bloquea mientras se espera una respuesta.
+- **Manejo de errores:** mensajes claros para API key inválida, límite por minuto o cuota diaria agotada (con el tiempo de espera que indica la API), modelo no disponible, falta de conexión, respuestas bloqueadas por filtros y respuestas vacías. Los errores recuperables muestran un botón **Reintentar**.
 
 ## Controles
 
@@ -63,23 +97,32 @@ Three.js y D3 se cargan desde un CDN mediante un *import map*, así que no hace 
 | Rueda del mouse | Acercar o alejar hacia el punto del cursor |
 | Clic derecho + arrastrar (o flechas del teclado) | Desplazar |
 | Pasar el mouse sobre un nodo | Tooltip con año, categoría, resumen y datos clave |
-| Clic en un nodo | Panel con el detalle y sus conexiones |
+| Clic en un nodo | Panel con el detalle y sus conexiones; si es un personaje, abre el chat |
 | Doble clic en un nodo | Acercar la cámara a ese nodo |
 | Botones **Superior** y **Lateral** | Cambiar de vista; un clic en la vista activa la restablece |
 | Botón **Todas las conexiones** | Mostrar u ocultar todas las conexiones a la vez |
 | Clic en un nivel de la leyenda | Mostrar solo ese nivel; otro clic muestra todos |
-| `Esc` | Cerrar el panel |
+| `Enter` / `Shift + Enter` en el chat | Enviar la pregunta / nueva línea |
+| Control **Temperatura** o `/temp 0.5` en el chat | Cambiar la temperatura de las siguientes respuestas |
+| `Esc` | Cerrar el chat o el panel |
 
 ## Estructura
 
 ```
 constelaciones-chef-en-el-aire/
 ├── index.html            # Estructura de la interfaz e import map
+├── server.js             # Servidor local: sirve el proyecto y lee la API key de .env
+├── package.json          # Script "npm start" (sin dependencias)
+├── .env.example          # Plantilla del archivo .env
 ├── css/styles.css        # Estilos
 ├── js/
-│   ├── main.js           # Integra la escena con la interfaz (tooltip, panel, leyenda, controles)
+│   ├── main.js           # Integra la escena con la interfaz (tooltip, paneles, leyenda, controles)
 │   ├── constellation.js  # Escena 3D: espiral, nodos, conexiones, cámara y revelado por zoom
-│   └── data.js           # Categorías, épocas, eventos y conexiones causales
+│   ├── llm-client.js     # Clase LLMClient: llamadas a Gemini, memoria y manejo de errores
+│   ├── chat-panel.js     # Panel de chat con los personajes
+│   ├── data.js           # Categorías, épocas, eventos, conexiones y prompts de personajes
+│   └── config.example.js # Alternativa a .env para servidores estáticos
+├── assets/               # Avatares de los personajes (monogramas SVG)
 └── screenshots/          # Capturas para el informe
 ```
 
@@ -90,3 +133,5 @@ constelaciones-chef-en-el-aire/
 | Three.js 0.170 (WebGL) | Escena 3D, nodos con `ShaderMaterial`, halos con sprites aditivos, conexiones como curvas Bézier (`QuadraticBezierCurve3` + `TubeGeometry`) con un shader de pulsos animados, `OrbitControls` y etiquetas con `CSS2DRenderer` |
 | D3.js 7.9 | Escalas de datos: año → posición en la espiral, importancia → tamaño, impacto → brillo; curvas de animación de la cámara |
 | HTML, CSS y JavaScript (módulos ES) | Interfaz: leyenda con indicador de profundidad, controles de vista, tooltip y panel de detalle |
+| API de Gemini (Google AI Studio) | Conversación con los personajes mediante `generateContent` con *system instructions* |
+| Node.js | Servidor local sin dependencias (`server.js`) |

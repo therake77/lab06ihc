@@ -37,8 +37,10 @@ const nodeFragmentShader = /* glsl */ `
     float facing = clamp(dot(vNormal, vViewDir), 0.0, 1.0);
     float rim = pow(1.0 - facing, 2.2);
 
-    vec3 color = baseColor * intensity * pulse * (0.55 + 0.45 * facing);
+    vec3 color = baseColor * intensity * pulse * (0.6 + 0.4 * facing);
     color += mix(baseColor, vec3(1.0), 0.35) * rim * (0.8 + highlight);
+    // Centro casi blanco, como una estrella caliente
+    color += mix(baseColor, vec3(1.0), 0.6) * pow(facing, 5.0) * (0.35 + 0.35 * highlight);
     color += vec3(1.0) * highlight * 0.18;
     color *= mix(1.0, 0.22, dimmed);
 
@@ -102,6 +104,54 @@ function createGlowTexture() {
   return tex;
 }
 
+// Destello de estrella de 4 puntas: núcleo brillante + dos rayos finos cruzados
+function createStarTexture() {
+  const size = 256;
+  const c = size / 2;
+  const canvas = document.createElement('canvas');
+  canvas.width = canvas.height = size;
+  const ctx = canvas.getContext('2d');
+  ctx.globalCompositeOperation = 'lighter';
+
+  // Núcleo
+  const core = ctx.createRadialGradient(c, c, 0, c, c, c);
+  core.addColorStop(0, 'rgba(255,255,255,1)');
+  core.addColorStop(0.05, 'rgba(255,255,255,0.95)');
+  core.addColorStop(0.14, 'rgba(255,255,255,0.4)');
+  core.addColorStop(0.35, 'rgba(255,255,255,0.08)');
+  core.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = core;
+  ctx.fillRect(0, 0, size, size);
+
+  // Rayos: rombos muy delgados que se desvanecen hacia las puntas
+  const spike = (angle, width, alpha) => {
+    ctx.save();
+    ctx.translate(c, c);
+    ctx.rotate(angle);
+    const g = ctx.createLinearGradient(-c, 0, c, 0);
+    g.addColorStop(0, 'rgba(255,255,255,0)');
+    g.addColorStop(0.15, `rgba(255,255,255,${0.1 * alpha})`);
+    g.addColorStop(0.38, `rgba(255,255,255,${0.45 * alpha})`);
+    g.addColorStop(0.5, `rgba(255,255,255,${alpha})`);
+    g.addColorStop(0.62, `rgba(255,255,255,${0.45 * alpha})`);
+    g.addColorStop(0.85, `rgba(255,255,255,${0.1 * alpha})`);
+    g.addColorStop(1, 'rgba(255,255,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(-c, 0);
+    ctx.quadraticCurveTo(0, -width, c, 0);
+    ctx.quadraticCurveTo(0, width, -c, 0);
+    ctx.fill();
+    ctx.restore();
+  };
+  spike(0, size * 0.04, 1);
+  spike(Math.PI / 2, size * 0.04, 1);
+
+  const tex = new THREE.CanvasTexture(canvas);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  return tex;
+}
+
 // Geometría según la forma de la categoría (información que no depende solo del color)
 function geometryForShape(shape, r) {
   switch (shape) {
@@ -158,6 +208,7 @@ export class ConstellationSpiral {
     this.raycaster = new THREE.Raycaster();
     this.mouse = new THREE.Vector2();
     this.glowTexture = createGlowTexture();
+    this.starTexture = createStarTexture();
     this.clock = new THREE.Clock();
     this.viewDir = new THREE.Vector3();
 
@@ -201,7 +252,7 @@ export class ConstellationSpiral {
     this.nodeSizeScale = d3.scaleLinear().domain([1, 10]).range([0.45, 1.35]);
 
     // Impacto causal (n.º de conexiones) → intensidad luminosa
-    this.intensityScale = d3.scaleSqrt().domain([0, 12]).range([0.75, 1.6]).clamp(true);
+    this.intensityScale = d3.scaleSqrt().domain([0, 12]).range([0.95, 1.75]).clamp(true);
 
     this.categoryById = new Map(CATEGORIES.map((c, i) => [c.id, { ...c, index: i }]));
     this.levelGap = 20;
@@ -419,7 +470,7 @@ export class ConstellationSpiral {
       map: this.glowTexture,
       color,
       transparent: true,
-      opacity: 0.45 + Math.min(impact, 10) * 0.05,
+      opacity: 0.55 + Math.min(impact, 10) * 0.04,
       blending: THREE.AdditiveBlending,
       depthWrite: false
     }));
@@ -429,6 +480,23 @@ export class ConstellationSpiral {
     this.scene.add(glow);
     mesh.userData.glow = glow;
     mesh.userData.glowBase = glow.material.opacity;
+
+    // Destello de 4 puntas: crece y brilla más al pasar el mouse o seleccionar
+    const flare = new THREE.Sprite(new THREE.SpriteMaterial({
+      map: this.starTexture,
+      color: color.clone().lerp(new THREE.Color(0xffffff), 0.4),
+      transparent: true,
+      opacity: 0.9,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      fog: false   // las estrellas brillan aunque estén en un nivel profundo
+    }));
+    flare.position.copy(pos);
+    flare.renderOrder = 2;
+    this.scene.add(flare);
+    mesh.userData.flare = flare;
+    mesh.userData.flareBase = r * 8 * (1 + Math.min(impact, 10) * 0.05);
+    mesh.userData.flareLevel = 0;   // 0 normal, 1 hover, 2 seleccionado (suavizado)
 
     // Anillo para los personajes con los que se puede conversar
     if (eventData.personaje) {
@@ -769,8 +837,22 @@ export class ConstellationSpiral {
         node.rotation.z += delta * 0.25;
         if (u.ring) u.ring.rotation.z += delta * 0.6;
       }
+      const dim = u.shaderUniforms.dimmed.value;
       const boost = node === this.hovered || node === this.selected ? 1.6 : 1;
-      u.glow.material.opacity = u.glowBase * boost * (1 - u.shaderUniforms.dimmed.value * 0.8);
+      u.glow.material.opacity = u.glowBase * boost * (1 - dim * 0.8);
+
+      // Destello: nivel 0 normal, 1 con el mouse encima, 2 seleccionado
+      const goal = node === this.selected ? 2 : node === this.hovered ? 1 : 0;
+      u.flareLevel += (goal - u.flareLevel) * (1 - Math.exp(-Math.min(delta, 0.1) * 10));
+      const phase = u.shaderUniforms.phase.value;
+      const twinkle = prefersReducedMotion ? 1 : 1 + 0.07 * Math.sin(time * 3 + phase) + 0.04 * u.flareLevel * Math.sin(time * 5);
+      // De cerca, el destello no crece tanto en pantalla
+      const distance = node.position.distanceTo(this.camera.position);
+      const nearFactor = Math.min(1, Math.max(0.35, distance / 70));
+      const size = u.flareBase * (1 + 0.6 * u.flareLevel) * twinkle * nearFactor;
+      u.flare.scale.set(size, size, 1);
+      u.flare.material.opacity = Math.min(1, 0.9 + 0.1 * u.flareLevel) * (1 - dim * 0.9);
+      if (!prefersReducedMotion) u.flare.material.rotation = 0.12 * Math.sin(time * 0.6 + phase);
     });
     this.connections.forEach(c => { c.uniforms.time.value = time; });
 

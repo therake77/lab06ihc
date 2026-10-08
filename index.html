@@ -74,13 +74,51 @@
     <dl class="info-meta"></dl>
 
     <div class="info-character" hidden>
-      <p>Este nodo es un personaje histórico.</p>
+      <p>Puedes conversar con este personaje tal como era en su época.</p>
+      <button type="button" id="info-chat" class="btn btn-small"></button>
     </div>
 
     <h3 class="info-subtitle">Influyó en</h3>
     <ul class="info-links info-out"></ul>
     <h3 class="info-subtitle">Recibió influencia de</h3>
     <ul class="info-links info-in"></ul>
+  </aside>
+
+  <aside id="chat-panel" class="chat-panel" aria-labelledby="chat-name" hidden>
+    <header class="chat-header">
+      <img id="chat-avatar" class="chat-avatar" src="" alt="" width="52" height="52">
+      <div class="chat-id">
+        <h2 id="chat-name" class="chat-name"></h2>
+        <p id="chat-meta" class="chat-meta"></p>
+      </div>
+      <button type="button" id="chat-reset" class="icon-btn" aria-label="Reiniciar conversación" title="Reiniciar conversación">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8a5.5 5.5 0 1 0 1.7-4M2.5 2.5v3h3"/></svg>
+      </button>
+      <button type="button" id="chat-close" class="icon-btn" aria-label="Cerrar chat">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>
+      </button>
+    </header>
+
+    <div id="chat-messages" class="chat-messages" role="log" aria-live="polite" aria-label="Mensajes"></div>
+
+    <div id="chat-suggestions" class="chat-suggestions" aria-label="Preguntas sugeridas"></div>
+
+    <form id="chat-form" class="chat-form">
+      <label for="chat-input" class="visually-hidden">Escribe tu pregunta</label>
+      <textarea id="chat-input" rows="1" maxlength="600" placeholder="Escribe una pregunta…"></textarea>
+      <button type="submit" id="chat-send" class="send-btn" aria-label="Enviar pregunta">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 13V3M3.5 7.5 8 3l4.5 4.5"/></svg>
+      </button>
+    </form>
+    <div class="chat-settings">
+      <label for="chat-temp" class="temp-label">Temperatura</label>
+      <input type="range" id="chat-temp" min="0" max="2" step="0.1" value="1" list="temp-marks" aria-describedby="chat-temp-hint">
+      <datalist id="temp-marks">
+        <option value="0"></option><option value="0.5"></option><option value="1"></option><option value="1.5"></option><option value="2"></option>
+      </datalist>
+      <output id="chat-temp-value" for="chat-temp" class="temp-value">1.0</output>
+    </div>
+    <p id="chat-temp-hint" class="chat-model">También puedes escribir <kbd>/temp 0.5</kbd> en el chat. <span id="chat-model"></span></p>
   </aside>
 
   <noscript>Esta visualización necesita JavaScript y WebGL.</noscript>

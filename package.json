@@ -1,0 +1,13 @@
+{
+  "name": "constelaciones-chef-en-el-aire",
+  "version": "1.0.0",
+  "description": "Constelación 3D sobre cómo seguimos una receta, con chat con personajes históricos vía Gemini",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

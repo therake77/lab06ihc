@@ -1,4 +1,5 @@
 # API key de Gemini (no subir nunca al repositorio)
+.env
 js/config.js
 
 # Sistema y editores
@@ -7,4 +8,3 @@ Thumbs.db
 desktop.ini
 .vscode/
 node_modules/
-.env

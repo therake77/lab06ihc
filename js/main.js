@@ -1,6 +1,7 @@
 // main.js — Integración de la visualización con la interfaz
 import { ConstellationSpiral } from './constellation.js';
 import { historicalData, CATEGORIES } from './data.js';
+import { CharacterChat } from './chat-panel.js';
 
 // Iconos SVG de cada forma, usados en la leyenda, el tooltip y el panel
 const SHAPE_ICONS = {
@@ -34,6 +35,10 @@ class ChefConstellationApp {
 
     this.tooltip = document.getElementById('tooltip');
     this.infoPanel = document.getElementById('info-panel');
+    this.chat = new CharacterChat({
+      categoryOf: (id) => this.categoryById.get(id),
+      onClose: () => this.constellation.select(null)
+    });
 
     this.computeLinks();
     this.initData();
@@ -142,7 +147,7 @@ class ChefConstellationApp {
 
   setupInteraction() {
     this.constellation.onNodeHover = (data, event) => this.updateTooltip(data, event);
-    this.constellation.onNodeClick = (data) => this.showEventInfo(data);
+    this.constellation.onNodeClick = (data) => this.onNodeClick(data);
 
     // Vistas: un clic en la vista activa la restablece
     document.querySelectorAll('[data-view]').forEach(btn => {
@@ -161,8 +166,13 @@ class ChefConstellationApp {
     });
 
     document.getElementById('info-close').addEventListener('click', () => this.closeInfo());
+    document.getElementById('info-chat').addEventListener('click', () => {
+      if (this.infoData) this.openCharacterChat(this.infoData);
+    });
     document.addEventListener('keydown', (e) => {
-      if (e.key === 'Escape') this.closeInfo();
+      if (e.key !== 'Escape') return;
+      if (this.chat.isOpen) this.chat.close();
+      else this.closeInfo();
     });
   }
 
@@ -192,7 +202,7 @@ class ChefConstellationApp {
         <p class="tt-summary">${escapeHtml(data.resumen)}</p>
         ${meta ? `<dl class="tt-meta">${meta}</dl>` : ''}
         <p class="tt-foot">
-          ${data.personaje ? '<span class="tt-badge">Personaje</span>' : ''}
+          ${data.prompt_personaje ? '<span class="tt-badge">Clic para conversar</span>' : ''}
           <span>${impact} ${impact === 1 ? 'conexión causal' : 'conexiones causales'}</span>
         </p>`;
       tip.hidden = false;
@@ -212,7 +222,26 @@ class ChefConstellationApp {
   }
 
   // ─────────────────────── Panel de información ───────────────────────
+  // Si el nodo es un personaje, se abre el chat; si no, la ficha del evento
+  onNodeClick(nodeData) {
+    if (nodeData.prompt_personaje) {
+      this.openCharacterChat(nodeData);
+    } else {
+      if (this.chat.isOpen) this.chat.close();
+      this.constellation.select(this.constellation.findNode(nodeData.id));
+      this.showEventInfo(nodeData);
+    }
+  }
+
+  openCharacterChat(characterData) {
+    this.closeInfo({ keepSelection: true });
+    this.updateTooltip(null);
+    this.constellation.select(this.constellation.findNode(characterData.id));
+    this.chat.open(characterData);
+  }
+
   showEventInfo(data) {
+    this.infoData = data;
     const cat = this.categoryById.get(data.categoria);
     const panel = this.infoPanel;
     panel.style.setProperty('--cat', cat.color);
@@ -230,7 +259,10 @@ class ChefConstellationApp {
     this.renderLinkList(panel.querySelector('.info-out'), this.outgoing.get(data.id) || [], 'No influyó en otros eventos de la constelación.');
     this.renderLinkList(panel.querySelector('.info-in'), this.incoming.get(data.id) || [], 'Es un punto de partida en la constelación.');
 
-    panel.querySelector('.info-character').hidden = !data.personaje;
+    panel.querySelector('.info-character').hidden = !data.prompt_personaje;
+    if (data.prompt_personaje) {
+      panel.querySelector('#info-chat').textContent = `Conversar con ${data.nombre.split(' ').slice(-1)[0]}`;
+    }
 
     panel.hidden = false;
     panel.classList.add('is-open');
@@ -265,11 +297,12 @@ class ChefConstellationApp {
     });
   }
 
-  closeInfo() {
+  closeInfo({ keepSelection = false } = {}) {
     this.infoPanel.classList.remove('is-open');
     this.infoPanel.hidden = true;
+    this.infoData = null;
     document.body.classList.remove('info-open');
-    this.constellation.select(null);
+    if (!keepSelection) this.constellation.select(null);
   }
 
   animate() {
