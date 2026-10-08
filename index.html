@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Constelación Chef en el Aire</title>
+  <meta name="description" content="Espiral 3D sobre cómo hemos seguido recetas mientras cocinamos, desde Apicio hasta una app manos libres.">
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible+Next:wght@400;500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/styles.css">
+
+  <!-- Librerías por CDN (sin paso de compilación) -->
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+      "d3": "https://cdn.jsdelivr.net/npm/d3@7.9.0/+esm"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="canvas-container" aria-label="Constelación 3D de eventos sobre recetas y cocina" role="img"></div>
+
+  <header class="masthead">
+    <p class="brand">Chef en el Aire</p>
+    <h1>Cómo seguimos una receta</h1>
+    <p class="lede">De los recetarios romanos a cocinar sin tocar la pantalla. Cada vuelta de la espiral es una época y cada nivel, una historia paralela.</p>
+    <p class="node-count" id="node-count"></p>
+  </header>
+
+  <section class="legend" aria-labelledby="legend-title">
+    <h2 id="legend-title">Niveles</h2>
+    <ul id="legend-list"></ul>
+    <p class="legend-note"><svg class="ring-icon" viewBox="0 0 16 16" aria-hidden="true"><ellipse cx="8" cy="8" rx="6.5" ry="3"/><circle cx="8" cy="8" r="2.2"/></svg>Con anillo: personaje histórico</p>
+  </section>
+
+  <section class="nav-help" aria-label="Controles de navegación">
+    <ul>
+      <li><kbd>Arrastrar</kbd> rotar</li>
+      <li><kbd>Rueda</kbd> acercar o alejar</li>
+      <li><kbd>Clic derecho</kbd> desplazar</li>
+      <li><kbd>Doble clic</kbd> enfocar un nodo</li>
+    </ul>
+    <button type="button" id="reset-view" class="btn">Vista general</button>
+  </section>
+
+  <div id="tooltip" class="tooltip" role="tooltip" hidden></div>
+
+  <aside id="info-panel" class="info-panel" aria-labelledby="info-title" hidden>
+    <button type="button" id="info-close" class="icon-btn" aria-label="Cerrar panel">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3.5 3.5l9 9M12.5 3.5l-9 9"/></svg>
+    </button>
+    <p class="info-cat"></p>
+    <h2 class="info-title" id="info-title"></h2>
+    <p class="info-year"></p>
+    <p class="info-summary"></p>
+    <dl class="info-meta"></dl>
+
+    <div class="info-character" hidden>
+      <p>Este nodo es un personaje histórico.</p>
+    </div>
+
+    <h3 class="info-subtitle">Influyó en</h3>
+    <ul class="info-links info-out"></ul>
+    <h3 class="info-subtitle">Recibió influencia de</h3>
+    <ul class="info-links info-in"></ul>
+  </aside>
+
+  <noscript>Esta visualización necesita JavaScript y WebGL.</noscript>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

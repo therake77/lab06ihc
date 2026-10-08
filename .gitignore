@@ -1,0 +1,9 @@
+# API key de Gemini (no subir nunca al repositorio)
+js/config.js
+
+# Sistema y editores
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+node_modules/
