@@ -1,5 +1,8 @@
 // chat-panel.js — Panel de chat con los personajes históricos
 import { LLMClient, LLMError, DEFAULT_TEMPERATURE } from './llm-client.js';
+import { Narrator } from './narrator.js';
+
+const SPEAKER_ICON = '<svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6h2.5l3.5-3v10L5 10H2.5z"/><path d="M11 5.5a3.5 3.5 0 0 1 0 5"/></svg>';
 
 const KEY_STORAGE = 'chef-en-el-aire.gemini-key';
 
@@ -71,6 +74,10 @@ export class CharacterChat {
     this.tempValue = document.getElementById('chat-temp-value');
     this.temperature = DEFAULT_TEMPERATURE;
     this.turnMeta = new WeakMap(); // respuesta del historial → { temperature, model }
+    this.narrator = new Narrator();
+    this.autoRead = false;
+    this.voiceBtn = document.getElementById('chat-voice');
+    this.voiceBtn.hidden = !this.narrator.supported;
 
     this.current = null;          // personaje abierto
     this.histories = new Map();   // memoria por personaje: id → historial de Gemini
@@ -116,6 +123,18 @@ export class CharacterChat {
     this.tempInput.addEventListener('change', () => this.setTemperature(Number(this.tempInput.value)));
     document.getElementById('chat-close').addEventListener('click', () => this.close());
     document.getElementById('chat-reset').addEventListener('click', () => this.reset());
+
+    // Lectura automática de las respuestas en voz alta
+    this.voiceBtn.addEventListener('click', () => {
+      this.autoRead = !this.autoRead;
+      this.voiceBtn.setAttribute('aria-pressed', String(this.autoRead));
+      if (!this.autoRead) this.narrator.stop();
+      if (this.current) {
+        this.addNote(this.autoRead
+          ? `Lectura en voz alta activada.${this.narrator.hasSpanishVoice ? '' : ' No se encontró una voz en español en este equipo; se usará la voz predeterminada.'}`
+          : 'Lectura en voz alta desactivada.');
+      }
+    });
   }
 
   /** Cambia la temperatura de las siguientes respuestas (0 a 2). */
@@ -168,7 +187,7 @@ export class CharacterChat {
     this.panel.classList.remove('is-open');
     document.body.classList.remove('chat-open');
     this.current = null;
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    this.narrator.stop();
     this.onClose?.();
   }
 
@@ -185,13 +204,14 @@ export class CharacterChat {
     this.messages.innerHTML = '';
     this.addNote(`Conversas con ${c.nombre} tal como era en ${c.lugar_epoca || c.año}; no conoce nada de lo que pasó después.`);
     // Saludo fijo: no gasta una solicitud del plan gratuito cada vez que se abre el chat
-    this.addMessage('character', c.saludo || `Hola, soy ${c.nombre}.`);
+    const greeting = this.addMessage('character', c.saludo || `Hola, soy ${c.nombre}.`);
+    this.addReplyMeta(greeting, null, c.saludo);
 
     const history = this.llm ? this.llm.conversationHistory : [];
     history.forEach(turn => {
-      const bubble = this.addMessage(turn.role === 'user' ? 'user' : 'character', turn.parts[0].text);
-      const meta = this.turnMeta.get(turn);
-      if (meta) this.addReplyMeta(bubble, meta);
+      const isUser = turn.role === 'user';
+      const bubble = this.addMessage(isUser ? 'user' : 'character', turn.parts[0].text);
+      if (!isUser) this.addReplyMeta(bubble, this.turnMeta.get(turn) || null, turn.parts[0].text);
     });
 
     this.renderSuggestions(history.length === 0 ? c.sugerencias || [] : []);
@@ -229,12 +249,43 @@ export class CharacterChat {
     return div;
   }
 
-  // Pie de cada respuesta: con qué temperatura y modelo se generó
-  addReplyMeta(bubble, { temperature, model }) {
-    const meta = document.createElement('p');
-    meta.className = 'reply-meta';
-    meta.textContent = `Temperatura ${temperature.toFixed(1)} · ${model}`;
-    bubble.appendChild(meta);
+  // Pie de cada respuesta: botón para escucharla y con qué temperatura y modelo se generó
+  addReplyMeta(bubble, meta, text) {
+    const row = document.createElement('div');
+    row.className = 'reply-actions';
+    if (this.narrator.supported && text) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'listen-btn';
+      btn.setAttribute('aria-pressed', 'false');
+      btn.innerHTML = `${SPEAKER_ICON}<span>Escuchar</span>`;
+      btn.addEventListener('click', () => this.toggleSpeech(btn, text));
+      row.appendChild(btn);
+      bubble.listenButton = btn;
+    }
+    if (meta) {
+      const info = document.createElement('p');
+      info.className = 'reply-meta';
+      info.textContent = `Temperatura ${meta.temperature.toFixed(1)} · ${meta.model}`;
+      row.appendChild(info);
+    }
+    if (row.childElementCount) bubble.appendChild(row);
+  }
+
+  // Leer o detener la lectura de una respuesta
+  toggleSpeech(btn, text) {
+    if (btn.getAttribute('aria-pressed') === 'true') {
+      this.narrator.stop();
+      return;
+    }
+    const label = btn.querySelector('span');
+    this.narrator.speak(text, this.current?.voz, {
+      onStart: () => { btn.setAttribute('aria-pressed', 'true'); label.textContent = 'Detener'; },
+      onEnd: () => { btn.setAttribute('aria-pressed', 'false'); label.textContent = 'Escuchar'; }
+    });
+    // Algunos navegadores no disparan onstart: se marca de inmediato
+    btn.setAttribute('aria-pressed', 'true');
+    label.textContent = 'Detener';
   }
 
   addNote(text) {
@@ -363,7 +414,8 @@ export class CharacterChat {
       // Si el usuario cambió de personaje mientras esperaba, no mezclar respuestas
       if (this.current !== character) return;
       const bubble = this.addMessage('character', reply);
-      this.addReplyMeta(bubble, meta);
+      this.addReplyMeta(bubble, meta, reply);
+      if (this.autoRead && bubble.listenButton) this.toggleSpeech(bubble.listenButton, reply);
       this.updateModelLabel();
       this.onReply?.(reply, bubble, character);
     } catch (error) {

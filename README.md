@@ -85,6 +85,7 @@ Detalles de la integración (`js/llm-client.js`):
 
 - **Memoria:** cada personaje conserva su propio historial (hasta 10 intercambios), que se envía en cada llamada. El botón ↻ reinicia la conversación.
 - **Temperatura:** se ajusta con el control deslizante del panel (de 0.0 a 2.0, por defecto 1.0) o escribiendo `/temp 0.5` en el chat. Se aplica a las respuestas siguientes, y cada respuesta indica con qué temperatura y modelo se generó.
+- **Lectura en voz alta (TTS):** cada respuesta tiene un botón **Escuchar**, y el botón con el altavoz del encabezado lee automáticamente las respuestas nuevas. Usa la Web Speech API del navegador (sin costo ni API key), prefiere una voz en español y asigna a cada personaje su propio tono y velocidad (campo `voz` en `data.js`). Encaja con el objetivo de Chef en el Aire: seguir la conversación sin mirar ni tocar la pantalla.
 - **Modelo:** con `GEMINI_MODEL=auto` (valor por defecto), la app consulta los modelos disponibles para la key y elige el Gemini Flash-Lite estable más reciente, que es el de mayor cuota en el plan gratuito. Si se agota su cuota diaria, cambia a otro modelo disponible y lo avisa en el chat. El modelo en uso se muestra al pie del panel.
 - **Plan gratuito:** el saludo de cada personaje es fijo para no gastar solicitudes; el pensamiento del modelo se limita al mínimo para ahorrar tokens; y el envío se bloquea mientras se espera una respuesta.
 - **Manejo de errores:** mensajes claros para API key inválida, límite por minuto o cuota diaria agotada (con el tiempo de espera que indica la API), modelo no disponible, falta de conexión, respuestas bloqueadas por filtros y respuestas vacías. Los errores recuperables muestran un botón **Reintentar**.
@@ -104,6 +105,7 @@ Detalles de la integración (`js/llm-client.js`):
 | Clic en un nivel de la leyenda | Mostrar solo ese nivel; otro clic muestra todos |
 | `Enter` / `Shift + Enter` en el chat | Enviar la pregunta / nueva línea |
 | Control **Temperatura** o `/temp 0.5` en el chat | Cambiar la temperatura de las siguientes respuestas |
+| Botón **Escuchar** o altavoz del encabezado del chat | Leer una respuesta o todas las nuevas en voz alta |
 | `Esc` | Cerrar el chat o el panel |
 
 ## Estructura
@@ -119,7 +121,8 @@ constelaciones-chef-en-el-aire/
 │   ├── main.js           # Integra la escena con la interfaz (tooltip, paneles, leyenda, controles)
 │   ├── constellation.js  # Escena 3D: espiral, nodos, conexiones, cámara y revelado por zoom
 │   ├── llm-client.js     # Clase LLMClient: llamadas a Gemini, memoria y manejo de errores
-│   ├── chat-panel.js     # Panel de chat con los personajes
+│   ├── chat-panel.js     # Panel de chat: memoria, temperatura y lectura en voz alta
+│   ├── narrator.js       # Lectura en voz alta con la Web Speech API
 │   ├── data.js           # Categorías, épocas, eventos, conexiones y prompts de personajes
 │   └── config.example.js # Alternativa a .env para servidores estáticos
 ├── assets/               # Avatares de los personajes (monogramas SVG)
@@ -134,4 +137,5 @@ constelaciones-chef-en-el-aire/
 | D3.js 7.9 | Escalas de datos: año → posición en la espiral, importancia → tamaño, impacto → brillo; curvas de animación de la cámara |
 | HTML, CSS y JavaScript (módulos ES) | Interfaz: leyenda con indicador de profundidad, controles de vista, tooltip y panel de detalle |
 | API de Gemini (Google AI Studio) | Conversación con los personajes mediante `generateContent` con *system instructions* |
+| Web Speech API (`speechSynthesis`) | Lectura en voz alta de las respuestas |
 | Node.js | Servidor local sin dependencias (`server.js`) |

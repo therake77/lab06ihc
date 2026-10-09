@@ -171,8 +171,8 @@ const smoothstep = (a, b, x) => {
 const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // Revelado por profundidad: altura de la cámara sobre un nivel → visibilidad (0–1)
-const REVEAL_FULL = 28;   // a esta altura o menos, el nivel se ve completo
-const REVEAL_NONE = 54;   // a esta altura o más, sus conexiones no se ven
+const REVEAL_FULL = 18;   // a esta altura o menos, el nivel se ve completo
+const REVEAL_NONE = 44;   // a esta altura o más, sus conexiones no se ven
 // Revelado por cercanía (como en la guía): distancia al nodo de origen
 const PROXIMITY_RANGE = 28;
 
@@ -255,7 +255,7 @@ export class ConstellationSpiral {
     this.intensityScale = d3.scaleSqrt().domain([0, 12]).range([0.95, 1.75]).clamp(true);
 
     this.categoryById = new Map(CATEGORIES.map((c, i) => [c.id, { ...c, index: i }]));
-    this.levelGap = 20;
+    this.levelGap = 8;
   }
 
   categoryIndex(category) {
@@ -292,12 +292,12 @@ export class ConstellationSpiral {
     this.views = {
       // Superior: la espiral de frente; la rueda desciende por el eje Z
       superior: {
-        position: new THREE.Vector3(0, -0.01, this.topZ + 82 * fit),
+        position: new THREE.Vector3(0, -0.01, this.topZ + 74 * fit),
         target: new THREE.Vector3(0, 0, this.bottomZ - 8)
       },
       // Lateral: los niveles se ven como pisos
       lateral: {
-        position: new THREE.Vector3(0, -112, 64).multiplyScalar(fit),
+        position: new THREE.Vector3(0, -78, 40).multiplyScalar(fit),
         target: new THREE.Vector3(0, 0, -4)
       }
     };

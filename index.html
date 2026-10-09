@@ -91,6 +91,9 @@
         <h2 id="chat-name" class="chat-name"></h2>
         <p id="chat-meta" class="chat-meta"></p>
       </div>
+      <button type="button" id="chat-voice" class="icon-btn voice-toggle" aria-pressed="false" aria-label="Leer las respuestas en voz alta" title="Leer las respuestas en voz alta">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 6h2.5l3.5-3v10L5 10H2.5z"/><path class="wave" d="M11 5.5a3.5 3.5 0 0 1 0 5M12.8 3.6a6 6 0 0 1 0 8.8"/></svg>
+      </button>
       <button type="button" id="chat-reset" class="icon-btn" aria-label="Reiniciar conversación" title="Reiniciar conversación">
         <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 8a5.5 5.5 0 1 0 1.7-4M2.5 2.5v3h3"/></svg>
       </button>
@@ -112,13 +115,13 @@
     </form>
     <div class="chat-settings">
       <label for="chat-temp" class="temp-label">Temperatura</label>
-      <input type="range" id="chat-temp" min="0" max="2" step="0.1" value="1" list="temp-marks" aria-describedby="chat-temp-hint">
+      <input type="range" id="chat-temp" min="0" max="2" step="0.1" value="1" list="temp-marks">
       <datalist id="temp-marks">
         <option value="0"></option><option value="0.5"></option><option value="1"></option><option value="1.5"></option><option value="2"></option>
       </datalist>
       <output id="chat-temp-value" for="chat-temp" class="temp-value">1.0</output>
     </div>
-    <p id="chat-temp-hint" class="chat-model">También puedes escribir <kbd>/temp 0.5</kbd> en el chat. <span id="chat-model"></span></p>
+    <p id="chat-model" class="chat-model"></p>
   </aside>
 
   <noscript>Esta visualización necesita JavaScript y WebGL.</noscript>

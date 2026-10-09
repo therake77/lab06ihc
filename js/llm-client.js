@@ -97,7 +97,9 @@ export class LLMClient {
     this.baseUrl = BASE_URL;
     this.conversationHistory = []; // Memoria de la conversación
     this.temperature = DEFAULT_TEMPERATURE;
-    this.maxOutputTokens = 1024;
+    // Margen amplio: en los modelos actuales el "pensamiento" también cuenta como salida
+    this.maxOutputTokens = 4096;
+    this.maxContinuations = 2;    // si aun así se corta, se pide que continúe
     this.thinkingSupported = true;
     this.onModelChange = null;     // callback(nuevoModelo, motivo)
   }
@@ -138,13 +140,10 @@ export class LLMClient {
     return this.modelName;
   }
 
-  buildRequest(message, systemPrompt, temperature) {
+  buildRequest(contents, systemPrompt, temperature) {
     const body = {
       systemInstruction: { parts: [{ text: systemPrompt }] },
-      contents: [
-        ...this.conversationHistory,
-        { role: 'user', parts: [{ text: message }] }
-      ],
+      contents,
       generationConfig: {
         temperature,
         maxOutputTokens: this.maxOutputTokens,
@@ -180,7 +179,37 @@ export class LLMClient {
     if (!text) {
       throw new LLMError('empty', 'La respuesta llegó vacía. Intenta de nuevo o haz una pregunta más corta.');
     }
-    return candidate.finishReason === 'MAX_TOKENS' ? `${text}…` : text;
+    return { text, truncated: candidate.finishReason === 'MAX_TOKENS' };
+  }
+
+  /**
+   * Si la respuesta se cortó por el límite de tokens, pide al modelo que continúe
+   * desde donde quedó (hasta maxContinuations veces) y une los fragmentos.
+   */
+  async completeTruncated(baseContents, partial, systemPrompt, temperature) {
+    let text = partial;
+    for (let i = 0; i < this.maxContinuations; i++) {
+      const contents = [
+        ...baseContents,
+        { role: 'model', parts: [{ text }] },
+        { role: 'user', parts: [{ text: 'Continúa exactamente donde te quedaste, sin repetir nada de lo anterior.' }] }
+      ];
+      try {
+        const response = await this.request(`${this.baseUrl}/${this.modelName}:generateContent`, {
+          method: 'POST',
+          headers: this.headers(),
+          body: JSON.stringify(this.buildRequest(contents, systemPrompt, temperature))
+        });
+        if (!response.ok) break;
+        const piece = this.extractReply(await response.json());
+        const needsSpace = !/\s$/.test(text) && !/^[\s.,;:!?)»”]/.test(piece.text);
+        text = `${text}${needsSpace ? ' ' : ''}${piece.text}`;
+        if (!piece.truncated) break;
+      } catch {
+        break; // si la continuación falla, se muestra lo que ya llegó
+      }
+    }
+    return text;
   }
 
   /**
@@ -198,15 +227,22 @@ export class LLMClient {
     while (true) {
       attempt++;
       const url = `${this.baseUrl}/${this.modelName}:generateContent`;
+      const contents = [
+        ...this.conversationHistory,
+        { role: 'user', parts: [{ text: message }] }
+      ];
       const response = await this.request(url, {
         method: 'POST',
         headers: this.headers(),
-        body: JSON.stringify(this.buildRequest(message, systemPrompt, temperature))
+        body: JSON.stringify(this.buildRequest(contents, systemPrompt, temperature))
       });
       const data = await response.json().catch(() => ({}));
 
       if (response.ok) {
-        const reply = this.extractReply(data);
+        const first = this.extractReply(data);
+        const reply = first.truncated
+          ? await this.completeTruncated(contents, first.text, systemPrompt, temperature)
+          : first.text;
         if (remember) {
           // Guardar en el historial para dar contexto a las siguientes preguntas
           this.conversationHistory.push(
