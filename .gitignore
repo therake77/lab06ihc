@@ -9,3 +9,4 @@ desktop.ini
 .vscode/
 node_modules/
 informe_typst/
+*.pdf
